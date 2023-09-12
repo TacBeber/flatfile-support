@@ -1,0 +1,13 @@
+{
+  "v-003": "La valeur doit être supérieure à 0",
+  "v-007": "La valeur doit être comprise entre 0 et 100",
+  "g-031": "Les combinaison de variations doivent être uniques",
+  "g-040": "Le nom d'un produit doit être unique",
+  "g-302": "Le format attendu est Nom=Valeur",
+  "g-303": "Le format attendu est +XXXXXXXXXXX",
+  "g-304": "Ce code pays n'existe pas",
+  "g-305": "Addresse email invalide",
+  "g-306": "Prix invalide",
+  "g-307": "Le format de date attendu est AAAA-MM-JJTHH:mm:ss.SSSZ",
+  "g-308": "La valeur doit être la même pour toutes les variations"
+}
