@@ -39,18 +39,17 @@ export const submitCustomer = async (jobId, workbook, spaceInfo) => {
       sendDataToTactill(webhookUrl, 'CUSTOMER', customerSheetId, customerRecords, spaceInfo).then(() =>
         api.jobs.complete(jobId, {
           outcome: {
+            acknowledge: true,
             message: 'Vos clients ont bien été importés dans Tactill',
           },
         })
       )
     } catch (error) {
-      if (!error.message.includes('timed out')) {
-        await api.jobs.fail(jobId, {
-          outcome: {
-            message: `Erreur clients : ${error}`,
-          },
-        })
-      }
+      await api.jobs.fail(jobId, {
+        outcome: {
+          message: `Erreur clients : ${error}`,
+        },
+      })
     }
   }
 }

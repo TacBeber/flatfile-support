@@ -54,3 +54,11 @@ export const sendDataToTactill = (webhookUrl, importType, sheetId, records, spac
       },
     }
   )
+
+export const formatNumberRecord = (record, fieldName) => {
+  const fieldValue = record.get(fieldName)?.toString()
+  if (fieldValue && fieldValue.includes(',')) {
+    record.set(fieldName, fieldValue.replace(',', '.'))
+    record.addInfo(fieldName, `Formatté depuis ${fieldValue}`)
+  }
+}

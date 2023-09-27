@@ -28,7 +28,6 @@ export const shallowEqual = (object1, object2) => {
       return false
     }
   }
-
   return true
 }
 

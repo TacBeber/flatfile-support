@@ -3,10 +3,13 @@ import { RecordTranslater } from '@flatfile/plugin-record-hook/src/record.transl
 
 import errorCodes from '../helpers/errorCodes.json'
 
-import { commonChecks, sendDataToTactill } from './common'
+import { commonChecks, sendDataToTactill, formatNumberRecord } from './common'
 import { shallowEqual } from '../helpers/helpers'
 
 export const validateCatalogRecords = async (records, event) => {
+  if (event.context.slugs.sheet !== 'catalog' || (event.context.actorId && event.context.actorId.includes('key'))) {
+    return
+  }
   const workbook = await api.workbooks.get(event.src.context.workbookId)
   const catalogSheetId = workbook.data.sheets.find((sheet) => sheet.config.slug === 'catalog').id
 
@@ -15,7 +18,13 @@ export const validateCatalogRecords = async (records, event) => {
     .config.fields.filter((field) => field.key.includes('var'))
     .map((field) => field.key)
 
-  const notVariationKeys = ['category', 'tax', 'miniature']
+  const notVariationKeys = [
+    ...['category', 'image_url', 'tags'],
+    ...workbook.data.sheets
+      .find((sheet) => sheet.config.slug === 'catalog')
+      .config.fields.filter((field) => field.key.startsWith('cf_'))
+      .map((field) => field.key),
+  ]
 
   const hasVariation = function (record) {
     return variationKeys
@@ -26,31 +35,27 @@ export const validateCatalogRecords = async (records, event) => {
   const res = records.map((record) => {
     commonChecks(record)
 
-    var i = 1
-    while (record.get(`var${i}`)) {
-      if (record.get(`var${i}`).split('=').length !== 2) record.addError(`var${i}`, errorCodes['g-302'])
-      i++
-    }
+    formatNumberRecord(record, 'sellPrice')
+    formatNumberRecord(record, 'buyPrice')
+    formatNumberRecord(record, 'tax')
+
+    variationKeys.forEach((key) => {
+      if (record.get(key) && record.get(key).split('=').length !== 2) record.addError(key, errorCodes['g-302'])
+    })
 
     var sellPrice = record.get('sellPrice')?.toString()
-    if (sellPrice && sellPrice.includes(',')) {
-      record.set('sellPrice', sellPrice.replace(',', '.'))
-    }
     if (record.get('sellPrice') && isNaN(record.get('sellPrice'))) {
       record.addError('sellPrice', errorCodes['g-306'])
     }
 
     var buyPrice = record.get('buyPrice')?.toString()
-    if (buyPrice && buyPrice.includes(',')) {
-      record.set('buyPrice', buyPrice.replace(',', '.'))
-    }
     if (record.get('buyPrice') && isNaN(record.get('buyPrice'))) {
       record.addError('buyPrice', errorCodes['g-306'])
     }
 
     var tax = record.get('tax')?.toString()
-    if (tax && tax.includes(',')) {
-      record.set('tax', tax.replace(',', '.'))
+    if (record.get('tax') && isNaN(record.get('tax'))) {
+      record.addError('tax', errorCodes['g-309'])
     }
 
     var sellPrice = record.get('sellPrice')?.toString()
@@ -68,27 +73,16 @@ export const validateCatalogRecords = async (records, event) => {
     if (hasVariation(record)) {
       notVariationKeys.forEach((key) =>
         recordsWithSameName.every((rcrd) => {
-          if (rcrd.get(key) && record.get(key) && rcrd.get(key) !== record.get(key))
-            record.addError(key, errorCodes['g-308'])
-          return !(rcrd.get(key) && record.get(key) && rcrd.get(key) !== record.get(key))
+          if (rcrd.get(key) !== record.get(key)) record.addError(key, errorCodes['g-308'])
+          return rcrd.get(key) === record.get(key)
         })
       )
-      // const recordOptions = variationKeys.reduce(
-      //   (acc, key) => ({ ...acc, [record.get(key)?.split('=')[0]]: record.get(key)?.split('=')[1] }),
-      //   {}
-      // )
-      // console.log('oubienla')
-      // console.log(JSON.stringify(recordOptions))
+      const recordOptions = getOptions(variationKeys, record)
+      const recordsWithSameOptions = recordsWithSameName.filter((rcrd) =>
+        shallowEqual(recordOptions, getOptions(variationKeys, rcrd))
+      )
 
-      // recordsWithSameName.every((rcrd) => {
-      //   const rcrdOptions = variationKeys.reduce(
-      //     (acc, key) => ({ ...acc, [rcrd.get(key)?.split('=')[0]]: rcrd.get(key)?.split('=')[1] }),
-      //     {}
-      //   )
-      //   if (shallowEqual(rcrdOptions, recordOptions))
-      //     variationKeys.forEach((key) => record.addError(key, errorCodes['g-031']))
-      //   return !shallowEqual(rcrdOptions, recordOptions)
-      // })
+      if (recordsWithSameOptions.length > 1) variationKeys.forEach((key) => record.addError(key, errorCodes['g-031']))
     }
 
     return record
@@ -97,50 +91,6 @@ export const validateCatalogRecords = async (records, event) => {
   await api.records.update(catalogSheetId, recordsUpdates)
   return res
 }
-
-// listener.use(
-//   recordHook('catalog', (record) => {
-//     commonChecks(record)
-
-//     var i = 1
-//     while (record.get(`var${i}`)) {
-//       if (record.get(`var${i}`).split('=').length !== 2) record.addError(`var${i}`, errorCodes['g-302'])
-//       i++
-//     }
-
-//     var sellPrice = record.get('sellPrice')?.toString()
-//     if (sellPrice && sellPrice.includes(',')) {
-//       record.set('sellPrice', sellPrice.replace(',', '.'))
-//     }
-//     if (record.get('sellPrice') && isNaN(record.get('sellPrice'))) {
-//       record.addError('sellPrice', errorCodes['g-306'])
-//     }
-
-//     var buyPrice = record.get('buyPrice')?.toString()
-//     if (buyPrice && buyPrice.includes(',')) {
-//       record.set('buyPrice', buyPrice.replace(',', '.'))
-//     }
-//     if (record.get('buyPrice') && isNaN(record.get('buyPrice'))) {
-//       record.addError('buyPrice', errorCodes['g-306'])
-//     }
-
-//     var tax = record.get('tax')?.toString()
-//     if (tax && tax.includes(',')) {
-//       record.set('tax', tax.replace(',', '.'))
-//     }
-
-//     var sellPrice = record.get('sellPrice')?.toString()
-//     if (Number.parseFloat(sellPrice) < 0) record.addError('sellPrice', errorCodes['v-003'])
-
-//     var buyPrice = record.get('buyPrice')?.toString()
-//     if (Number.parseFloat(buyPrice) < 0) record.addError('buyPrice', errorCodes['v-003'])
-
-//     var tax = record.get('tax')?.toString()
-//     if (Number.parseFloat(tax) < 0 || Number.parseFloat(tax) > 100) record.addError('tax', errorCodes['v-007'])
-
-//     return record
-//   })
-// )
 
 export const addVariationAction = async (event) => {
   const { jobId } = event.context
@@ -208,18 +158,24 @@ export const submitCatalog = async (jobId, workbook, spaceInfo) => {
       sendDataToTactill(webhookUrl, 'CATALOG', catalogSheetId, catalogRecords, spaceInfo).then(() =>
         api.jobs.complete(jobId, {
           outcome: {
+            acknowledge: true,
             message: 'Votre catalogue a été bien importé dans Tactill',
           },
         })
       )
     } catch (error) {
-      if (!error.message.includes('timed out')) {
-        await api.jobs.fail(jobId, {
-          outcome: {
-            message: `Erreur catalogue : ${error}`,
-          },
-        })
-      }
+      await api.jobs.fail(jobId, {
+        outcome: {
+          message: `Erreur catalogue : ${error}`,
+        },
+      })
     }
   }
 }
+
+const getOptions = (variationKeys, record) =>
+  variationKeys.reduce((acc, key) => {
+    const optionKey = record.get(key)?.split('=')[0]
+    const optionValue = record.get(key)?.split('=')[1]
+    return optionKey ? { ...acc, [optionKey]: optionValue } : acc
+  }, {})

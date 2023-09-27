@@ -19,7 +19,7 @@ export default function (listener) {
     console.log(`-> My event listener received an event: ${event.topic}\n`)
   })
 
-  // Catalog listener
+  // Catalog listeners
   listener.on('commit:created', (evt) => {
     return bulkRecordHook('catalog', evt, validateCatalogRecords)
   })

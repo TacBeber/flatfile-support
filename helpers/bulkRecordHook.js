@@ -5,11 +5,11 @@ export const bulkRecordHook = async (sheetSlug, event, handler) => {
   try {
     const workbook = await api.workbooks.get(event.context.workbookId)
     const catalogSheetId = workbook.data.sheets.find((sheet) => sheet.config.slug === sheetSlug).id
-    const eventRecords = (await api.records.get(catalogSheetId, { for: event.id })).data.records
-    //const records = await event.cache.init('records', async () => eventRecords)
-    if (!eventRecords) return
+    const records = (await api.records.get(catalogSheetId)).data.records
 
-    const batch = await prepareXRecords(eventRecords)
+    if (!records) return
+
+    const batch = await prepareXRecords(records)
 
     return handler(batch.records, event)
   } catch (e) {
